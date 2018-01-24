@@ -1,0 +1,133 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Ochazu-tech</title>
+</head>
+
+<body>
+  <div id="blynk_temperature"></div>
+  <canvas id="background" onclick="getMousePosition(event)" style="background-color:white;"></canvas>
+
+  <script type="text/javascript" src="img_position_ratio.js"></script>
+  <script type="text/javascript">
+    var canvas = document.getElementById("background");
+    var context = canvas.getContext("2d");
+    var background_img = new Image();
+    var img_array = [];
+    var img_subarray = [];
+    var n_imgs = 20;
+    var n_kinds = 9;
+    var img_width = getWindowWidth()/100;
+    var img_height = img_width;
+    var img = [];
+    var range_width = getWindowWidth()/20;
+    var range_height = range_width;
+    var border_temperature = 10.0; //[*C]
+    var interval_time = 300; //[ms]
+
+    var auth_token = "YOUR_OWN_AUTH_TOKEN";
+    var temperature_pin = "V5";
+
+
+    function getMousePosition(){
+      console.log("x="+parseFloat(event.clientX/canvas.width));
+      console.log("y="+parseFloat(event.clientY/canvas.height));
+      console.log(" ");
+    }
+
+    function getWindowWidth(){
+      // Get the dimensions of the viewport
+      return (window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth);
+    }
+
+    function getWindowHeight(){
+      // Get the dimensions of the viewport
+      return (window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight);
+    }
+
+    function setCanvasSize(){
+      canvas.width = getWindowWidth();
+      canvas.height = getWindowHeight();
+    };
+
+    function setImageProperty(initial_x, initial_y){
+      var random_n_imgs = Math.floor((Math.random()*n_imgs) + 1); // 1 ~ (n_imgs+1)
+
+      for(var i=0; i<random_n_imgs; i++){
+        img_subarray.push({
+          // Initial posision
+          "x" : initial_x + Math.floor(Math.random()*range_width), //- (range_width/2),
+          "y" : initial_y + Math.floor(Math.random()*range_height), //- (range_height/2),
+          // Size
+          "w" : img_width,
+          "h" : img_height
+        });
+      }
+
+      img_array.push(img_subarray);
+      img_subarray = [];
+    }
+
+    function getSensordata(){
+      // Get temperature
+      var xhrTemperature = new XMLHttpRequest();
+
+      xhrTemperature.onreadystatechange = function(){
+        if(this.readyState == 4){
+          var temperature = JSON.parse(this.responseText);
+
+          // Clear the all sakuras every time
+          context.clearRect(0, 0, canvas.width, canvas.height);
+
+          // Draw the background image
+          context.drawImage(background_img, 0, 0, canvas.width, canvas.height);
+
+          if(temperature >= border_temperature){
+            var idx = Math.floor(Math.random()*img_position_ratio.length);
+            var initial_x = Math.round(img_position_ratio[idx][0]*canvas.width) - range_width;
+            var initial_y = Math.round(img_position_ratio[idx][1]*canvas.height) - range_height;
+            setImageProperty(initial_x, initial_y);
+
+            document.getElementById("blynk_temperature").style.color = "red";
+          }else{
+            document.getElementById("blynk_temperature").style.color = "blue";
+          }
+
+          // Draw all sakuras
+          for(var i=0; i<img_array.length; i++){
+            for(var j=0; j<img_array[i].length; j++){
+              var random_n_kinds = Math.floor(Math.random()*img.length);
+              context.drawImage(img[random_n_kinds], img_array[i][j].x, img_array[i][j].y, img_array[i][j].w, img_array[i][j].h);
+            }
+          }
+
+          // If you want to see the temperature, just uncomment out below.
+          //document.getElementById("blynk_temperature").innerHTML = "Temperature = "+temperature+" [*C]";
+        }
+      };
+
+      xhrTemperature.open("GET", "http://blynk-cloud.com/"+auth_token+"/get/"+temperature_pin, true);
+      xhrTemperature.send();
+    }
+
+
+    // Set the canvas size same as the window size in real time
+    window.onload = setCanvasSize;
+    window.onresize = setCanvasSize;
+
+    // Load the image of the background and the sakura
+    background_img.src = "./images/background_signed.png";
+    for(var i=0; i<n_kinds; i++){
+      img[i] = new Image();
+      img[i].src = "./images/sakura"+i+".png";
+    }
+
+    // Run
+    img[n_kinds-1].onload = function(){
+      setInterval(getSensordata, interval_time); //[ms]
+    };
+
+  </script>
+</body>
+</html>
